@@ -103,6 +103,13 @@ def sig_hdr(sig_num, frame):
     os.system("pactl unload-module module-echo-cancel >&- 2>&-")
     sys.exit(0)
 
+def sig_usr1_hdr(sig_num, frame):
+    sys.stdout.write("\33[22;1H\33[2K\33[23;1H\33[2K\33[24;1H\33[2K\33[22;1H")
+    sys.stdout.flush()
+    if is_yy_on:
+        is_yy_on = False
+        print_in_mid("voice chat ended", isInfo = False)
+
 def get_public_addr():
     ips = os.popen("/sbin/ifconfig | grep -E 'inet addr|inet' | awk '{print $2}'").readlines()
     for ip in ips:
@@ -116,7 +123,7 @@ def cur_file_dir():
     elif os.path.isfile(path):
         return os.path.dirname(path)
 
-def print_in_mid(line, isChat= True, isInfo = False):
+def print_in_mid(line, isChat = True, isInfo = False):
     global row, last_row
     
     if line and len(line) <= 80:
@@ -132,6 +139,8 @@ def print_in_mid(line, isChat= True, isInfo = False):
         row = row + last_row
         if isChat and row > 20:
             row = 20
+        elif row > 24:
+            row = 24
 
 def wrap(data, left):
     global last_row
@@ -336,7 +345,7 @@ class TInput(threading.Thread):
                             is_yy_on = False
                             print_in_mid("voice chat ended", isInfo = False)
                         else:
-                            os.system(os.environ["HOME"] + "/Apps/localchat/yyclient " + addr[0] + " &")
+                            os.popen(os.environ["HOME"] + "/Apps/localchat/yyclient " + addr[0])
                             is_yy_on = True
                             print_in_mid("voice chat started", isInfo = False)
                         udp_server.sendto("@yy", addr)
@@ -854,7 +863,7 @@ def main(argv):
                     if row > 24:
                         row = 24
                 elif line[0] == "@":
-                    print_in_mid(line[1:], isInfo = True)
+                    print_in_mid(line[1:], isChat = False, isInfo = True)
                 else:
                     print "\33[31m历史记录文件损坏！\33[0m\n"
                     break
@@ -865,6 +874,8 @@ def main(argv):
     signal.signal(signal.SIGINT, sig_hdr)
     signal.signal(signal.SIGQUIT, sig_hdr)
     signal.signal(signal.SIGTERM, sig_hdr)
+
+    signal.signal(signal.SIGUSR1, sig_usr1_hdr)
     
     ## !experiment!
     window_id = int(os.popen("wmctrl -l -p | grep PyChat | (read id var2; echo $id)").read().strip("\n"), 16)
