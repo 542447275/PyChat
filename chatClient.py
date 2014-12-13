@@ -26,6 +26,7 @@ import time
 import sys
 import os
 import subprocess
+import tempfile
 
 import readline
 import datetime
@@ -298,7 +299,7 @@ class TInput(threading.Thread):
                     if data == "@history" or data == "@h":
                         sys.stdout.write("\33[22;1H\33[2K\33[23;1H\33[2K\33[24;1H\33[2K\33[22;1H")
                         sys.stdout.flush()
-                        os.system("gnome-terminal --title 历史记录 --hide-menubar -e 'sh -c \"" + cur_file_dir() + "/chatClient.py --history\"'")
+                        os.popen(cur_file_dir() + "/chatClient.py --history")
                     elif data == "@file" or data == "@f":
                         sys.stdout.write("\33[22;1H\33[2K\33[23;1H\33[2K\33[24;1H\33[2K\33[22;1H")
                         sys.stdout.flush()
@@ -853,27 +854,25 @@ def main(argv):
     
     if len(argv) > 0:
         if argv[0] == "--history":
-            os.system("resize -s 24 80 > /dev/null")
+            history_temp_file = tempfile.NamedTemporaryFile(bufsize = 4096)
             history_fd.seek(0,0)
             for line in history_fd.readlines():
                 if line[0] == "<":
-                    sys.stdout.write('\33[' + str(row) + ';1H\33[34m' + wrap(line[1:].rstrip("\n"), True) + '\33[0m\n')
-                    sys.stdout.flush()
-                    row = row + last_row
-                    if row > 24:
-                        row = 24
+                    history_temp_file.write('\33[1G\33[34m' + wrap(line[1:].rstrip("\n"), True) + '\33[0m\n')
                 elif line[0] == ">":
-                    sys.stdout.write('\33[' + str(row) + ';1H' + wrap(line[1:].rstrip("\n"), False) + '\n')
-                    sys.stdout.flush()
-                    row = row + last_row
-                    if row > 24:
-                        row = 24
+                    history_temp_file.write('\33[1G' + wrap(line[1:].rstrip("\n"), False) + '\n')
                 elif line[0] == "@":
-                    print_in_mid(line[1:], isChat = False, isInfo = True)
+                    history_temp_file.write('\33[' + str(40 - len(line) / 2 + 1) + 'G\33[33m' + line[1:] + '\33[0m\n')
                 else:
                     print "\33[31m历史记录文件损坏！\33[0m\n"
-                    break
-            raw_input("回车键退出。。。")
+                    history_temp_file.close()
+                    history_fd.close()
+                    raw_input("回车键退出。。。")
+                    exit(1)
+            history_temp_file.flush()
+            os.popen("gnome-terminal -e 'less -r +G \"" + history_temp_file.name + "\"' --hide-menubar --geometry=80x24 --title=历史记录")
+            time.sleep(3)
+            history_temp_file.close()
             history_fd.close()
             sys.exit(0)
     
