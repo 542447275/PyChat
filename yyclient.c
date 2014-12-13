@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -111,15 +112,14 @@ main(int argc, char *argv[])
         }
     } while ((length = send(socket_fd, data, BUFSIZE, 0)) == BUFSIZE);
     
-    if (length == -1) {
-        perror("send error");
-        close(connect_fd);
-        close(socket_fd);
-        exit(errno);
+    if (length != -1) {
+        errno = 0;
     }
     
     close(connect_fd);
     close(socket_fd);
+
+    kill(getppid(), SIGUSR1);
     
-    exit(0);
+    exit(errno);
 }
